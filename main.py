@@ -7,6 +7,24 @@ from capmonster_python import RecaptchaV2Task
 import capsolver
 import os
 
+def log(msg: str, color: str):
+    if color == "red":
+        print(f"\033[91m{msg}\033[00m")
+    elif color == "green":
+        print(f"\033[92m{msg}\033[00m")
+    elif color == "yellow":
+        print(f"\033[93m{msg}\033[00m")
+    elif color == "blue":
+        print(f"\033[94m{msg}\033[00m")
+    elif color == "purple":
+        print(f"\033[95m{msg}\033[00m")
+    elif color == "cyan":
+        print(f"\033[96m{msg}\033[00m")
+    else:
+        print(msg)
+    with open ("log.txt", "a+") as f:
+        f.write(msg + "\n")
+
 class Webshare:
     def __init__(self, proxyless=False, log_rotating=False, captcha_key="", captcha_service='capmonster'):
         self.proxyless = proxyless
@@ -48,11 +66,32 @@ class Webshare:
     def register(self):
         if self.should_stop:
             return None
-        print("Solving Recaptcha")
+        log("[+] Solving Captcha", "purple")
+
+        if not self.proxyless:
+            try:
+                response = self.session.get("https://webshare.io", timeout=10)
+                if response.status_code != 200:
+                    log("[!] Proxy Failed", "red")
+                    return self.check()
+            except:
+                log("[!] Proxy Failed", "red")
+                # remove the errored proxy
+                with open("proxies.txt", "w") as f:
+                    f.write("\n".join([prox for prox in self.proxies if prox != self.prox]))
+
+                self.proxies = [prox.strip() for prox in open("proxies.txt")]
+                self.prox = random.choice(self.proxies) if self.proxies else None
+                self.session.proxies = {
+                    'https': f'http://{self.prox}',
+                    'http': f'http://{self.prox}'
+                }
+                return self.check()
+
         captcha_key = Webshare.solve_captcha(self.captcha_key, self.service)
         if captcha_key is None:
             return self.begin()
-        print("Solved Captcha")
+        log("[+] Captcha Solved", "purple")
         url = 'https://proxy.webshare.io/api/v2/register/'
         payload = {
             "email": f"{''.join(random.choice(string.ascii_letters) for _ in range(random.randint(10, 14)))}@gmail.com",
@@ -65,8 +104,9 @@ class Webshare:
         try:
             return response.json()['token']
         except:
-            print(response.json())
+            log(response.json())
             if response.json()['detail']:
+                log(f"[!] {response.json()['detail']}", "red")
                 os._exit()
             return self.check()
 
@@ -78,31 +118,28 @@ class Webshare:
             if self.log_rotating:
                 with open("output.txt", 'a+') as f:
                     f.write(f"{proxy['username']}-rotate:{proxy['password']}@p.webshare.io:80\n")
-                print("Genned 1GB rotating proxy")
+                log("[+] Proxies Generated!", "green")
                 break
             else:
                 with open("output.txt", 'a+') as f:
                     f.write(f"{proxy['proxy_address']}:{proxy['port']}:{proxy['username']}:{proxy['password']}\n")
                 # with open("proxies.txt", 'a+') as f:
                 #    f.write(f"{proxy['username']}:{proxy['password']}@{proxy['proxy_address']}:{proxy['port']}\n")
-        print(f"Genned 1GB 10 static proxies")
+        log(f"[*] Proxies Generated!", "green")
 
     def begin(self):
         if self.should_stop:
             return
         token = self.register()
-        print("Created Webshare Account")
+        log("[*] Created Webshare Account", "cyan")
         if token:
             self.session.headers['Authorization'] = f"Token {token}"
             self.download_proxies()
             return self.begin()
         else:
-            print("Failed to create Webshare account.")
+            log("[!] Failed to create Webshare account.", "red")
 
     def check(self):
-        if self.errored >= 5:
-            os._exit()
-        else:
             self.errored += 1
             return self.begin()
 
@@ -118,12 +155,7 @@ def start_webshare():
 
 if __name__ == "__main__":
     os.system("title Webshare Generator")
-    os.system("mode con: cols=30 lines=5")
-    with open("config.json") as f:
-        data = json.load(f)
-        if data['headless']:
-            import ctypes
-            ctypes.windll.user32.ShowWindow( ctypes.windll.kernel32.GetConsoleWindow(), 0 )
+    #os.system("mode con: cols=30 lines=5")
     num_threads = 1
     threads = []
     for _ in range(num_threads):

@@ -1,6 +1,7 @@
 import os
 import time
 import subprocess
+import json
 
 os.system("cls")
 os.system("title Webshare Generation Manager")
@@ -16,12 +17,17 @@ old_lines = lines
 firstTime = True
 secondTime = False
 
+with open("log.txt", "w") as f:
+    f.write("")
+
 print("\n! This is only if you are getting rate limited very fast !\n")
 
 reset = 0
 
+looped = 0
+
 def run():
-    global reset, lines, threads, firstTime, secondTime
+    global reset, lines, threads, firstTime, secondTime, looped
 
     if reset >= 10:
         print("Rate limited too many times, stopping generator")
@@ -29,56 +35,67 @@ def run():
         return
     
     for _ in range(threads):
-        os.system("start cmd /c python main.py")
+        with open("config.json") as f:
+            data = json.load(f)
+            if data['headless']:
+                os.system("start /min cmd /c python main.py")
+            else:
+                os.system("start cmd /c python main.py")
 
     while True:
 
+        if looped == 15:
+            # get tasks
+            tasks = subprocess.getoutput("tasklist").split("\n")
+            # check if any "webshare generator" tasks are running
+            running = [task for task in tasks if "Webshare Generator" in task.lower()]
+            if len(running) == 0:
+                # red
+                #print("\033[91m" + "Uh oh! All threads have closed! Please contact the developer if this is a mistake." + "\033[0m")
+                print("For some reason, windows is saying all threads have closed. This is a mistake, please ignore this message. If it is not a mistake, restart the generator.")
+
+            looped = 0
+
+            with open("log.txt", "w") as f:
+                f.write("")
+
+
+        with open("log.txt", "r") as f:
+            log = f.read()
+            os.system("cls")
+            log = log.split("\n")
+            for line in log:
+                if line.startswith("[*]"):
+                    if line.startswith("[*] Created"):
+                        # cyan
+                        print("\033[96m" + line + "\033[0m")
+                    else:
+                        # green
+                        print("\033[92m" + line + "\033[0m")
+                elif line.startswith("[!]"):
+                    # red
+                    print("\033[91m" + line + "\033[0m")
+                else:
+                    # purple
+                    print("\033[95m" + line + "\033[0m")
+        
         with open("output.txt", "r") as f:
-            new_lines = len(f.readlines())
-            
-        divided = (int(new_lines - lines))
-        active_windows = 0
+            lines = len(f.readlines())
 
-        checkOutput = subprocess.check_output('tasklist /v', shell=True)
+            print("\033[92m\n\n[ Total Proxies: " + str(lines) + " ; New Proxies: " + str(lines - old_lines) + " ]\033[0m")
+        
+        time.sleep(2)
 
-        checkOutput = checkOutput.decode('utf-8', 'ignore')
-        checkOutput = checkOutput.encode('utf-8', 'ignore')
-        checkOutput = str(checkOutput)
-
-        for line in checkOutput.split("\\r\\n"):
-            if "Webshare Generator" in line:
-                active_windows += 1
-
-        os.system("cls")
-
-        print("\n[+] New proxies generated: " + str(int(divided)))
-        print("[+] Total proxies generated: " + str(int(new_lines)))
-        if active_windows == 0:
-            print("[+] Active threads: " + str(threads))
-        else:
-            print("[+] Active threads: " + str(active_windows))
-
-        try:
-            tasks = subprocess.check_output('tasklist /v', shell=True, encoding='utf-8')
-        except:
-            continue
-
-        if "Webshare Generator" not in tasks:
-            break
-
-        if firstTime:
-            time.sleep(0)
-            firstTime = False
-            secondTime = True
-        elif secondTime:
-            time.sleep(10)
-            secondTime = False
-        else:
-            continue
+        looped += 1
 
     reset = reset + 1
 
     print("Windows closed, restarting generator. Reset Number " + str(reset))
+
+    time.sleep(3)
+
+    with open("log.txt", "w") as f:
+        f.write("")
 
     run()
 
