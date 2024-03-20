@@ -119,9 +119,11 @@ def start_webshare():
 if __name__ == "__main__":
     os.system("title Webshare Generator")
     os.system("mode con: cols=30 lines=5")
-    import ctypes
-    ctypes.windll.user32.ShowWindow( ctypes.windll.kernel32.GetConsoleWindow(), 6 )
-    os.system
+    with open("config.json") as f:
+        data = json.load(f)
+        if data['headless']:
+            import ctypes
+            ctypes.windll.user32.ShowWindow( ctypes.windll.kernel32.GetConsoleWindow(), 0 )
     num_threads = 1
     threads = []
     for _ in range(num_threads):

@@ -14,15 +14,16 @@ with open("output.txt", "r") as f:
 old_lines = lines
 
 firstTime = True
+secondTime = False
 
 print("\n! This is only if you are getting rate limited very fast !\n")
 
 reset = 0
 
 def run():
-    global reset, lines, threads, firstTime
+    global reset, lines, threads, firstTime, secondTime
 
-    if reset >= 5:
+    if reset >= 10:
         print("Rate limited too many times, stopping generator")
         time.sleep(3)
         return
@@ -36,9 +37,15 @@ def run():
             new_lines = len(f.readlines())
             
         divided = (int(new_lines - lines))
-
         active_windows = 0
-        for line in subprocess.check_output('tasklist /v', shell=True, encoding='utf-8').split("\n"):
+
+        checkOutput = subprocess.check_output('tasklist /v', shell=True)
+
+        checkOutput = checkOutput.decode('utf-8', 'ignore')
+        checkOutput = checkOutput.encode('utf-8', 'ignore')
+        checkOutput = str(checkOutput)
+
+        for line in checkOutput.split("\\r\\n"):
             if "Webshare Generator" in line:
                 active_windows += 1
 
@@ -46,24 +53,28 @@ def run():
 
         print("\n[+] New proxies generated: " + str(int(divided)))
         print("[+] Total proxies generated: " + str(int(new_lines)))
-        print("[+] Active threads: " + str(active_windows))
+        if active_windows == 0:
+            print("[+] Active threads: " + str(threads))
+        else:
+            print("[+] Active threads: " + str(active_windows))
 
         try:
             tasks = subprocess.check_output('tasklist /v', shell=True, encoding='utf-8')
-        except UnicodeDecodeError as e:
-            print("[*] Uh oh! It seems like Discord is open. Discord can cause issues with the generator due to the way it handles window titles. Please close Discord and try again.")
-            time.sleep(3)
-            os.system("taskkill /f /im cmd.exe")
-            os._exit(1)
+        except:
+            continue
 
         if "Webshare Generator" not in tasks:
             break
 
         if firstTime:
-            time.sleep(6)
+            time.sleep(0)
             firstTime = False
+            secondTime = True
+        elif secondTime:
+            time.sleep(10)
+            secondTime = False
         else:
-            time.sleep(2)
+            continue
 
     reset = reset + 1
 
