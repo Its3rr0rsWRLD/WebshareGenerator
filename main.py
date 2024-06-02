@@ -8,6 +8,8 @@ import capsolver
 import os
 
 def log(msg: str, color: str):
+    if not isinstance(msg, str):
+        msg = str(msg)
     if color == "red":
         print(f"\033[91m{msg}\033[00m")
     elif color == "green":
@@ -104,10 +106,12 @@ class Webshare:
         try:
             return response.json()['token']
         except:
-            log(response.json())
+            log(response.json(), "red")
             if response.json()['detail']:
                 log(f"[!] {response.json()['detail']}", "red")
-                os._exit()
+                # exit
+                self.should_stop = True
+                return None
             return self.check()
 
     def download_proxies(self):
@@ -131,8 +135,8 @@ class Webshare:
         if self.should_stop:
             return
         token = self.register()
-        log("[*] Created Webshare Account", "cyan")
         if token:
+            log("[*] Created Webshare Account", "cyan")
             self.session.headers['Authorization'] = f"Token {token}"
             self.download_proxies()
             return self.begin()
