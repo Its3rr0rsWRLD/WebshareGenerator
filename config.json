@@ -1,6 +1,0 @@
-{
-    "proxyless": true,
-    "captcha_apikey": "key",
-    "captcha_service": "capsolver OR capmonster",
-    "headless": false
-}
