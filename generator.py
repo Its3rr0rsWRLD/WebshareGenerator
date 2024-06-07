@@ -30,7 +30,7 @@ def update():
                 print("Updated successfully. Restart the program.")
                 exit()
         else:
-            print("No updates available.")
+            pass
     except Exception as e:
         print(f"An error occurred while checking for updates: {e}")
 
