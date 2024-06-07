@@ -8,6 +8,7 @@ else:
     os.system("clear")
 
 import json
+import requests
 import colorama
 import threading
 from src.webshare import Webshare
@@ -15,6 +16,23 @@ from src.webshare import Webshare
 colorama.init()
 
 threads = 1
+
+def update():
+    current_version = "1.1.2"
+    try:
+        version = requests.get("https://raw.githubusercontent.com/Its3rr0rsWRLD/WebshareGenerator/main/version.txt").text.strip()
+        if version != current_version:
+            print(f"Update available! {current_version} -> {version}")
+            print("Do you want to update? (y/n): ", end="")
+            update = input().strip().lower()
+            if update == 'y':
+                os.system("git pull")
+                print("Updated successfully. Restart the program.")
+                exit()
+        else:
+            print("No updates available.")
+    except Exception as e:
+        print(f"An error occurred while checking for updates: {e}")
 
 def config():
     print("Proxyless? [Recommended] (y/n): ", end="")
@@ -66,4 +84,5 @@ def main():
         thread.join()
 
 if __name__ == "__main__":
+    update()
     main()
