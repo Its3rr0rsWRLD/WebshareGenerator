@@ -9,13 +9,12 @@ from capmonster_python import RecaptchaV2Task
 import capsolver
 
 class Webshare:
-    def __init__(self, proxyless=False, log_rotating=False, captcha_key="", captcha_service='capmonster'):
+    def __init__(self, proxyless=False, captcha_key="", captcha_service='capmonster', proxies=None):
         self.proxyless = proxyless
         self.captcha_key = captcha_key
-        self.log_rotating = log_rotating
         self.service = captcha_service
         self.session = requests.Session()
-        self.proxies = self.load_proxies() if not proxyless else []
+        self.proxies = proxies
         self.prox = random.choice(self.proxies) if self.proxies else None
         self.errored = 0
         self.should_stop = False
@@ -29,20 +28,6 @@ class Webshare:
                 'https': f'http://{self.prox}',
                 'http': f'http://{self.prox}'
             }
-
-    def load_proxies(self):
-        with open("proxies.txt") as f:
-            return [prox.strip() for prox in f]
-
-    def update_proxies(self):
-        with open("proxies.txt", "w") as f:
-            f.write("\n".join([prox for prox in self.proxies if prox != self.prox]))
-        self.proxies = self.load_proxies()
-        self.prox = random.choice(self.proxies) if self.proxies else None
-        self.session.proxies = {
-            'https': f'http://{self.prox}',
-            'http': f'http://{self.prox}'
-        }
 
     @staticmethod
     def solve_captcha(key: str, service: str):
@@ -124,8 +109,6 @@ class Webshare:
         log.log(f"[*] {len(proxies)} Proxies Generated!", "green")
 
     def format_proxy(self, proxy):
-        if self.log_rotating:
-            return f"{proxy['username']}-rotate:{proxy['password']}@p.webshare.io:80"
         return f"{proxy['proxy_address']}:{proxy['port']}:{proxy['username']}:{proxy['password']}"
 
     def begin(self):

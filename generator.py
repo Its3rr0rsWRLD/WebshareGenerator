@@ -18,10 +18,13 @@ colorama.init()
 threads = 1
 
 def update():
-    current_version = "1.1.2"
+    with open("version.txt") as f:
+        current_version = f.read().strip()
     try:
         version = requests.get("https://raw.githubusercontent.com/Its3rr0rsWRLD/WebshareGenerator/main/version.txt").text.strip()
-        if version != current_version:
+        vnum = [int(i) for i in version.split(".")]
+        cvnum = [int(i) for i in current_version.split(".")]
+        if vnum > cvnum:
             print(f"Update available! {current_version} -> {version}")
             print("Do you want to update? (y/n): ", end="")
             update = input().strip().lower()
@@ -41,8 +44,8 @@ def config():
     captcha_key = input().strip()
     print("Captcha Service (capmonster/capsolver): ", end="")
     captcha_service = input().strip().lower()
-    print("Headless? (y/n): ", end="")
-    headless = input().strip().lower()
+    print("Proxy File? [Leave Blank If Proxyless] (filename): ", end="")
+    proxy_file = input().strip().lower()
     print("Thread count: ", end="")
     threads = int(input().strip())
 
@@ -50,7 +53,7 @@ def config():
         "proxyless": proxyless == 'y',
         "captcha_apikey": captcha_key,
         "captcha_service": captcha_service,
-        "headless": headless == 'y',
+        "proxy_file": proxy_file,
         "threads": threads
     }
 
@@ -59,7 +62,7 @@ def config():
 
     print("Config saved. To edit the config, open config.json")
 
-def worker(proxyless, captcha_key, captcha_service):
+def worker(proxyless, captcha_key, captcha_service, proxies):
     webshare = Webshare(proxyless=proxyless, captcha_key=captcha_key, captcha_service=captcha_service)
     webshare.begin()
 
@@ -72,16 +75,27 @@ def main():
         proxyless = data.get("proxyless")
         captcha_key = data.get("captcha_apikey")
         captcha_service = data.get("captcha_service")
+        proxy_file = data.get("proxy_file")
         threads = data.get("threads")
+
+    if not proxyless and proxy_file:
+        with open(proxy_file) as proxy_file:
+            proxies = proxy_file.read().splitlines()
+    else:
+        proxies = []
 
     thread_list = []
     for _ in range(threads):
-        thread = threading.Thread(target=worker, args=(proxyless, captcha_key, captcha_service))
+        thread = threading.Thread(target=worker, args=(proxyless, captcha_key, captcha_service, proxies))
         thread_list.append(thread)
         thread.start()
 
-    for thread in thread_list:
-        thread.join()
+    try:
+        while True:
+            pass
+    except KeyboardInterrupt:
+        for thread in thread_list:
+            thread.join()
 
 if __name__ == "__main__":
     update()
