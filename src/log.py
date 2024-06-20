@@ -1,5 +1,3 @@
-import os
-
 class log:
     def log(msg: str, color: str):
         if not isinstance(msg, str):

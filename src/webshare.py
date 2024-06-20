@@ -2,129 +2,123 @@ import requests
 import random
 import threading
 import string
-import json
-import os
 from src.log import log
 from capmonster_python import RecaptchaV2Task
 import capsolver
 
+download_proxies_lock = threading.Lock()
+
 class Webshare:
-    def __init__(self, proxyless=False, captcha_key="", captcha_service='capmonster', proxies=None):
+    WEBSITE_KEY = "6LeHZ6UUAAAAAKat_YS--O2tj_by3gv3r_l03j9d"
+
+    def __init__(self, proxyless, captcha_apikey, captcha_service, proxies):
         self.proxyless = proxyless
-        self.captcha_key = captcha_key
+        self.captcha_apikey = captcha_apikey
         self.service = captcha_service
-        self.session = requests.Session()
         self.proxies = proxies
-        self.prox = random.choice(self.proxies) if self.proxies else None
-        self.errored = 0
-        self.should_stop = False
+        self.session = requests.Session()
+        self.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
+        self.captcha_key = None
+        self.used_captcha_key = False
 
         self.session.headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
+            "User-Agent": self.user_agent
         }
 
-        if not proxyless and self.prox:
-            self.session.proxies = {
-                'https': f'http://{self.prox}',
-                'http': f'http://{self.prox}'
-            }
+        if not proxyless:
+            self.select_new_proxy()
+
+    def select_new_proxy(self):
+        selected_proxy = random.choice(self.proxies) if self.proxies else None
+
+        self.session.proxies = {
+            'https': f'http://{selected_proxy}',
+            'http': f'http://{selected_proxy}'
+        }
 
     @staticmethod
-    def solve_captcha(key: str, service: str):
-        if service == "capmonster":
-            capmonster = RecaptchaV2Task(key)
-            task_id = capmonster.create_task("https://webshare.io", "6LeHZ6UUAAAAAKat_YS--O2tj_by3gv3r_l03j9d")
+    def solve_captcha(api_key: str, service_name: str, user_agent: str):
+        if service_name == "capmonster":
+            capmonster = RecaptchaV2Task(api_key)
+            task_id = capmonster.create_task("https://webshare.io", Webshare.WEBSITE_KEY)
             result = capmonster.join_task_result(task_id)
             return result.get("gRecaptchaResponse")
-        else:
-            capsolver.api_key = key
+        elif service_name == "capsolver":
+            capsolver.api_key = api_key
             return capsolver.solve({
                 "type": "ReCaptchaV2TaskProxyLess",
                 "websiteURL": "https://webshare.io",
-                "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
-                "websiteKey": "6LeHZ6UUAAAAAKat_YS--O2tj_by3gv3r_l03j9d"
+                "userAgent": user_agent,
+                "websiteKey": Webshare.WEBSITE_KEY
             })['gRecaptchaResponse']
+        else:
+            raise Exception("Invalid captcha service")
 
     def register(self):
-        if self.should_stop:
-            return None
-
         log.log("[+] Solving Captcha", "purple")
 
-        if not self.proxyless:
-            try:
-                response = self.session.get("https://webshare.io", timeout=10)
-                if response.status_code != 200:
-                    log.log("[!] Proxy Failed", "red")
-                    return self.check()
-            except requests.RequestException:
-                log.log("[!] Proxy Failed", "red")
-                self.update_proxies()
-                return self.check()
+        if not self.captcha_key or self.used_captcha_key:
+            self.captcha_key = Webshare.solve_captcha(self.captcha_apikey, self.service, self.user_agent)
 
-        captcha_key = Webshare.solve_captcha(self.captcha_key, self.service)
-        if captcha_key is None:
-            return self.begin()
         log.log("[+] Captcha Solved", "purple")
-        
+
         url = 'https://proxy.webshare.io/api/v2/register/'
         payload = {
             "email": f"{''.join(random.choice(string.ascii_letters) for _ in range(random.randint(10, 14)))}@gmail.com",
             "password": f"Joker{random.randint(2000, 5000)}!",
             "tos_accepted": True,
-            "recaptcha": captcha_key
+            "recaptcha": self.captcha_key
         }
-        
-        response = self.session.post(url, json=payload, proxies=self.session.proxies)
+
+        response = self.session.post(url, json=payload)
+        self.used_captcha_key = False
+        self.captcha_key = None
+
         self.session.cookies = response.cookies
-        
+
+        result = response.json()
+
         try:
-            return response.json()['token']
+            token = result['token']
         except KeyError:
-            if response.json().get('detail'):
-                log.log(f"[!] {response.json()['detail']}", "red")
-                if "throttle" in response.json()['detail']:
-                    log.log("[!] Rate Limited - Please change your VPN/IP location and run the script again.", "red")
-                self.should_stop = True
-                return None
-            return self.check()
+            if "throttle" in result.get('detail'):
+                raise Exception("[!] Rate Limited - Please change your VPN/IP location and run the script again.")
+
+            raise Exception(f"[!] Error: {result}")
+
+        return token
 
     def download_proxies(self):
-        if self.should_stop:
-            return
-        
         url = 'https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=10'
         response = self.session.get(url)
         proxies = response.json().get('results', [])
 
         if not proxies:
-            log.log("[!] No proxies found.", "red")
-            return
+            raise Exception("No proxies found.")
 
-        with open("output.txt", 'a+') as f:
-            for proxy in proxies:
-                proxy_string = self.format_proxy(proxy)
-                f.write(proxy_string + "\n")
+        with download_proxies_lock:
+            with open("output.txt", 'a+') as f:
+                for proxy in proxies:
+                    proxy_string = self.format_proxy(proxy)
+                    f.write(proxy_string + "\n")
 
-        log.log(f"[*] {len(proxies)} Proxies Generated!", "green")
+        return proxies
 
     def format_proxy(self, proxy):
         return f"{proxy['proxy_address']}:{proxy['port']}:{proxy['username']}:{proxy['password']}"
 
-    def begin(self):
-        if self.should_stop:
-            return
-        token = self.register()
-        if token:
+    def generate_proxies(self):
+        try:
+            auth_token = self.register()
             log.log("[*] Created Webshare Account", "cyan")
-            self.session.headers['Authorization'] = f"Token {token}"
-            self.download_proxies()
-            return self.begin()
-        else:
-            if self.should_stop:
-                return
-            log.log("[!] Failed to create Webshare account.", "red")
+            self.session.headers['Authorization'] = f"Token {auth_token}"
 
-    def check(self):
-        self.errored += 1
-        return self.begin()
+            proxies = self.download_proxies()
+            log.log(f"[*] {len(proxies)} Proxies Generated!", "green")
+            self.select_new_proxy()
+
+        except requests.RequestException as e:
+            log.log("[!] Proxy Failed " + str(e), "red")
+
+        except Exception as e:
+            log.log(f"[!] {str(e)}", "red")
