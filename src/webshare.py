@@ -18,6 +18,8 @@ class Webshare:
         self.proxies = proxies
         self.session = requests.Session()
         self.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
+        self.captcha_key = None
+        self.used_captcha_key = False
 
         self.session.headers = {
             "User-Agent": self.user_agent
@@ -55,7 +57,8 @@ class Webshare:
     def register(self):
         log.log("[+] Solving Captcha", "purple")
 
-        captcha_key = Webshare.solve_captcha(self.captcha_apikey, self.service, self.user_agent)
+        if not self.captcha_key or self.used_captcha_key:
+            self.captcha_key = Webshare.solve_captcha(self.captcha_apikey, self.service, self.user_agent)
 
         log.log("[+] Captcha Solved", "purple")
 
@@ -64,10 +67,13 @@ class Webshare:
             "email": f"{''.join(random.choice(string.ascii_letters) for _ in range(random.randint(10, 14)))}@gmail.com",
             "password": f"Joker{random.randint(2000, 5000)}!",
             "tos_accepted": True,
-            "recaptcha": captcha_key
+            "recaptcha": self.captcha_key
         }
 
         response = self.session.post(url, json=payload)
+        self.used_captcha_key = False
+        self.captcha_key = None
+
         self.session.cookies = response.cookies
 
         result = response.json()
