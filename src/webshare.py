@@ -17,18 +17,22 @@ class Webshare:
         self.service = captcha_service
         self.proxies = proxies
         self.session = requests.Session()
-        self.selected_proxy = random.choice(self.proxies) if self.proxies else None
         self.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
 
         self.session.headers = {
             "User-Agent": self.user_agent
         }
 
-        if not proxyless and self.selected_proxy:
-            self.session.proxies = {
-                'https': f'http://{self.selected_proxy}',
-                'http': f'http://{self.selected_proxy}'
-            }
+        if not proxyless:
+            self.select_new_proxy()
+
+    def select_new_proxy(self):
+        selected_proxy = random.choice(self.proxies) if self.proxies else None
+
+        self.session.proxies = {
+            'https': f'http://{selected_proxy}',
+            'http': f'http://{selected_proxy}'
+        }
 
     @staticmethod
     def solve_captcha(api_key: str, service_name: str, user_agent: str):
@@ -105,6 +109,7 @@ class Webshare:
 
             proxies = self.download_proxies()
             log.log(f"[*] {len(proxies)} Proxies Generated!", "green")
+            self.select_new_proxy()
 
         except requests.RequestException:
             log.log("[!] Proxy Failed", "red")

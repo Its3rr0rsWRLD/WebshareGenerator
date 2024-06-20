@@ -91,12 +91,8 @@ def main():
         thread_list.append(thread)
         thread.start()
 
-    try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        for thread in thread_list:
-            thread.join()
+    for thread in thread_list:
+        thread.join()
 
 if __name__ == "__main__":
     update()
