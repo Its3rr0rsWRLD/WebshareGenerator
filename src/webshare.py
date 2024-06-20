@@ -111,8 +111,8 @@ class Webshare:
             log.log(f"[*] {len(proxies)} Proxies Generated!", "green")
             self.select_new_proxy()
 
-        except requests.RequestException:
-            log.log("[!] Proxy Failed", "red")
+        except requests.RequestException as e:
+            log.log("[!] Proxy Failed " + str(e), "red")
 
         except Exception as e:
             log.log(f"[!] {str(e)}", "red")

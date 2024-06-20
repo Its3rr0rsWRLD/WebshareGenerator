@@ -1,4 +1,5 @@
 import os
+import time
 
 if os.name == 'nt':
     os.system("cls")
@@ -12,8 +13,6 @@ import threading
 from src.webshare import Webshare
 
 colorama.init()
-
-threads = 1
 
 def update():
     with open("version.txt") as f:
@@ -91,8 +90,8 @@ def main():
         thread_list.append(thread)
         thread.start()
 
-    for thread in thread_list:
-        thread.join()
+    while True:
+        time.sleep(1)
 
 if __name__ == "__main__":
     update()
