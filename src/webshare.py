@@ -31,10 +31,23 @@ class Webshare:
     def select_new_proxy(self):
         selected_proxy = random.choice(self.proxies) if self.proxies else None
 
-        self.session.proxies = {
-            'https': f'http://{selected_proxy}',
-            'http': f'http://{selected_proxy}'
-        }
+        if selected_proxy:
+            proxy_address = selected_proxy.split(":")[0]
+            port = selected_proxy.split(":")[1]
+            username = selected_proxy.split(":")[2]
+            password = selected_proxy.split(":")[3]
+
+            if username and password:
+                proxy_string = f"{username}:{password}@{proxy_address}:{port}"
+            else:
+                proxy_string = f"{proxy_address}:{port}"
+
+            self.session.proxies = {
+                'https': f'http://{proxy_string}',
+                'http': f'http://{proxy_string}'
+            }
+        else:
+            self.session.proxies = None
 
     @staticmethod
     def solve_captcha(api_key: str, service_name: str, user_agent: str):
