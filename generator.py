@@ -76,9 +76,12 @@ def main():
         proxy_file = data.get("proxy_file")
         threads = data.get("threads")
 
-    if not proxyless and proxy_file:
+    if not proxyless and os.path.exists(proxy_file):
         with open(proxy_file) as proxy_file:
             proxies = proxy_file.read().splitlines()
+    elif not proxyless and not os.path.exists(proxy_file):
+        print(f"Proxy file {proxy_file} not found, continuing without proxies.")
+        proxies = []
     else:
         proxies = []
 

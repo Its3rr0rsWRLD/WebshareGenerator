@@ -132,6 +132,8 @@ class Webshare:
 
         except requests.RequestException as e:
             log.log("[!] Proxy Failed " + str(e), "red")
+            self.proxies.remove(self.session.proxies['http'].split("//")[1])
+            self.select_new_proxy()
 
         except Exception as e:
             log.log(f"[!] {str(e)}", "red")
