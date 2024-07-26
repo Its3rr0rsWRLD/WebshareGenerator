@@ -11,7 +11,7 @@ download_proxies_lock = threading.Lock()
 class Webshare:
     WEBSITE_KEY = "6LeHZ6UUAAAAAKat_YS--O2tj_by3gv3r_l03j9d"
 
-    def __init__(self, proxyless, captcha_apikey, captcha_service, proxies):
+    def __init__(self, proxyless, captcha_apikey, captcha_service, proxies, proxy_format):
         self.proxyless = proxyless
         self.captcha_apikey = captcha_apikey
         self.service = captcha_service
@@ -20,6 +20,7 @@ class Webshare:
         self.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36"
         self.captcha_key = None
         self.used_captcha_key = False
+        self.proxy_format = proxy_format
 
         self.session.headers = {
             "User-Agent": self.user_agent
@@ -122,7 +123,15 @@ class Webshare:
         return proxies
 
     def format_proxy(self, proxy):
-        return f"{proxy['username']}:{proxy['password']}@{proxy['proxy_address']}:{proxy['port']}"
+        # get "proxy_format" from self.proxy_format
+        if self.proxy_format == "ip:port":
+            return f"{proxy['proxy_address']}:{proxy['port']}"
+        elif self.proxy_format == "ip:port:username:password:=" or self.proxy_format == "ip:port:user:pass":
+            return f"{proxy['proxy_address']}:{proxy['port']}:{proxy['username']}:{proxy['password']}"
+        elif self.proxy_format == "username:password@ip:port" or self.proxy_format == "user:pass@ip:port":
+            return f"{proxy['username']}:{proxy['password']}@{proxy['proxy_address']}:{proxy['port']}"
+        else:
+            raise Exception("Invalid proxy format")
 
     def generate_proxies(self):
         try:
