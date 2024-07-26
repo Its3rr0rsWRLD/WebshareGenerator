@@ -32,15 +32,19 @@ class Webshare:
         selected_proxy = random.choice(self.proxies) if self.proxies else None
 
         if selected_proxy:
-            proxy_address = selected_proxy.split(":")[0]
-            port = selected_proxy.split(":")[1]
-            username = selected_proxy.split(":")[2]
-            password = selected_proxy.split(":")[3]
-
-            if username and password:
+            proxy_parts = selected_proxy.split(":")
+            if len(proxy_parts) == 2:
+                proxy_address = proxy_parts[0]
+                port = proxy_parts[1]
+                proxy_string = f"{proxy_address}:{port}"
+            elif len(proxy_parts) == 4:
+                proxy_address = proxy_parts[0]
+                port = proxy_parts[1]
+                username = proxy_parts[2]
+                password = proxy_parts[3]
                 proxy_string = f"{username}:{password}@{proxy_address}:{port}"
             else:
-                proxy_string = f"{proxy_address}:{port}"
+                raise Exception("Invalid proxy format")
 
             self.session.proxies = {
                 'https': f'http://{proxy_string}',
@@ -118,7 +122,7 @@ class Webshare:
         return proxies
 
     def format_proxy(self, proxy):
-        return f"{proxy['proxy_address']}:{proxy['port']}:{proxy['username']}:{proxy['password']}"
+        return f"{proxy['username']}:{proxy['password']}@{proxy['proxy_address']}:{proxy['port']}"
 
     def generate_proxies(self):
         try:
