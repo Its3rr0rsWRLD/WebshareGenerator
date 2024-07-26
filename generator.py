@@ -27,7 +27,9 @@ def update():
             update = input().strip().lower()
             if update == 'y':
                 os.system("git pull")
-                print("Updated successfully. Restart the program.")
+                if os.path.exists("config.json"):
+                    os.remove("config.json")
+                input("Updated successfully. Your config.json has been removed due to the update, so please set it up again by running 'generator.bat'. Press enter to exit.")
                 exit()
         else:
             pass
@@ -45,13 +47,15 @@ def create_config():
     proxy_file = input().strip().lower()
     print("Thread count: ", end="")
     threads = int(input().strip())
+    proxy_format = input("Proxy Format (ip:port:username:password, user:pass:ip:port): ").strip()
 
     data = {
         "proxyless": proxyless == 'y',
         "captcha_apikey": captcha_apikey,
         "captcha_service": captcha_service,
         "proxy_file": proxy_file,
-        "threads": threads
+        "threads": threads,
+        "proxy_format": proxy_format
     }
 
     with open("config.json", "w") as f:
@@ -75,6 +79,7 @@ def main():
         captcha_service = data.get("captcha_service")
         proxy_file = data.get("proxy_file")
         threads = data.get("threads")
+        proxy_format = data.get("proxy_format")
 
     if not proxyless and os.path.exists(proxy_file):
         with open(proxy_file) as proxy_file:
