@@ -47,7 +47,7 @@ def create_config():
     proxy_file = input().strip().lower()
     print("Thread count: ", end="")
     threads = int(input().strip())
-    proxy_format = input("Proxy Format (ip:port:username:password, user:pass:ip:port): ").strip()
+    proxy_format = input("Proxy Format (ip:port:username:password, user:pass:ip:port, user:pass@ip:port): ").strip()
 
     data = {
         "proxyless": proxyless == 'y',
@@ -63,8 +63,8 @@ def create_config():
 
     print("Config saved. To edit the config, open config.json")
 
-def worker(proxyless, captcha_apikey, captcha_service, proxies):
-    webshare = Webshare(proxyless, captcha_apikey, captcha_service, proxies)
+def worker(proxyless, captcha_apikey, captcha_service, proxies, proxy_format):
+    webshare = Webshare(proxyless, captcha_apikey, captcha_service, proxies, proxy_format)
     while True:
         webshare.generate_proxies()
 
@@ -94,7 +94,7 @@ def main():
 
     thread_list = []
     for _ in range(threads):
-        thread = threading.Thread(target=worker, args=(proxyless, captcha_apikey, captcha_service, proxies), daemon=True)
+        thread = threading.Thread(target=worker, args=(proxyless, captcha_apikey, captcha_service, proxies, proxy_format), daemon=True)
         thread_list.append(thread)
         thread.start()
 
