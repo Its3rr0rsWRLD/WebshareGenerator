@@ -31,6 +31,7 @@ class Webshare:
         self.session = self._create_session()
         self.captcha_key = None
         self.used_captcha_key = False
+        self.current_proxy = None  # Added to track the current proxy
 
     def _create_session(self) -> requests.Session:
         session = requests.Session()
@@ -48,6 +49,7 @@ class Webshare:
             return
 
         selected_proxy = random.choice(self.proxies)
+        self.current_proxy = selected_proxy  # Track this proxy
         proxy_config = self._parse_proxy(selected_proxy)
         proxy_string = self._format_proxy_string(proxy_config)
         
@@ -57,6 +59,11 @@ class Webshare:
         }
 
     def _parse_proxy(self, proxy: str) -> ProxyConfig:
+        if '@' in proxy:
+            auth, address = proxy.split('@')
+            username, password = auth.split(':')
+            host, port = address.split(':')
+            return ProxyConfig(address=host, port=port, username=username, password=password)
         parts = proxy.split(":")
         if len(parts) == 2:
             return ProxyConfig(address=parts[0], port=parts[1])
@@ -120,7 +127,10 @@ class Webshare:
 
         if 'token' not in result:
             if "throttle" in result.get('detail', ''):
-                raise RuntimeError("Rate Limited - Please change your VPN/IP location and run the script again.")
+                # Remove the current proxy if rate limited
+                if self.current_proxy in self.proxies:
+                    self.proxies.remove(self.current_proxy)
+                raise RuntimeError("Rate Limited - Proxy removed. Please try with a new proxy.")
             raise RuntimeError(f"Error: {result}")
 
         return result['token']
@@ -166,9 +176,9 @@ class Webshare:
 
         except requests.RequestException as e:
             log.log(f"[!] Proxy Failed: {str(e)}", "red")
-            current_proxy = self.session.proxies['http'].split("//")[1]
-            if current_proxy in self.proxies:
-                self.proxies.remove(current_proxy)
+            # Remove current proxy from the list
+            if self.current_proxy in self.proxies:
+                self.proxies.remove(self.current_proxy)
             self.select_new_proxy()
 
         except Exception as e:
