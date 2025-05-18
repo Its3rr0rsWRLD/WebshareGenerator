@@ -8,6 +8,7 @@ from src.log import log
 from capmonster_python import RecaptchaV2Task
 import capsolver
 
+
 download_proxies_lock = threading.Lock()
 
 @dataclass
@@ -31,7 +32,7 @@ class Webshare:
         self.session = self._create_session()
         self.captcha_key = None
         self.used_captcha_key = False
-        self.current_proxy = None  # Added to track the current proxy
+        self.current_proxy = None
 
     def _create_session(self) -> requests.Session:
         session = requests.Session()
@@ -43,16 +44,13 @@ class Webshare:
     def select_new_proxy(self, session: Optional[requests.Session] = None):
         if session is None:
             session = self.session
-            
         if not self.proxies:
             session.proxies = None
             return
-
         selected_proxy = random.choice(self.proxies)
-        self.current_proxy = selected_proxy  # Track this proxy
+        self.current_proxy = selected_proxy
         proxy_config = self._parse_proxy(selected_proxy)
         proxy_string = self._format_proxy_string(proxy_config)
-        
         session.proxies = {
             'https': f'http://{proxy_string}',
             'http': f'http://{proxy_string}'
@@ -94,24 +92,42 @@ class Webshare:
             return result['gRecaptchaResponse']
         raise ValueError("Invalid captcha service")
 
+    def _generate_email(self):
+        domains = ['gmail.com', 'outlook.com', 'yahoo.com', 'icloud.com']
+        roots = [
+            'pixel', 'alpha', 'drift', 'neo', 'astro', 'zenith', 'echo', 'nova', 'crypt', 'orbit',
+            'dash', 'cloud', 'vibe', 'frost', 'hex', 'pulse', 'quant', 'terra', 'lumen', 'flux'
+        ]
+        suffixes = ['tv', 'hub', 'io', 'xd', 'on', 'lab', 'it', 'max', 'sys', 'hq']
+
+        base = random.choice(roots)
+        suffix = random.choice(suffixes)
+        number = str(random.randint(10, 999)) if random.random() < 0.4 else ''
+
+        username = f"{base}{suffix}{number}"
+
+        return f"{username}@{random.choice(domains)}"
+
+
+    def _generate_password(self):
+        pwd_chars = (
+            random.choices(string.ascii_lowercase, k=random.randint(4, 6)) +
+            random.choices(string.ascii_uppercase, k=random.randint(2, 4)) +
+            random.choices(string.digits, k=random.randint(2, 4)) +
+            random.choices('!@#$%^&*', k=random.randint(1, 2))
+        )
+        random.shuffle(pwd_chars)
+        return ''.join(pwd_chars)
+
     def register(self) -> str:
         log.log("[+] Solving Captcha", "purple")
-        
         if not self.captcha_key or self.used_captcha_key:
             self.captcha_key = self.solve_captcha(self.captcha_apikey, self.service, self.USER_AGENT)
-        
         log.log("[+] Captcha Solved", "purple")
 
-        first_names = ['john', 'mike', 'sarah', 'emma', 'david', 'james', 'alex', 'lisa']
-        domains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com']
-        
-        email = f"{random.choice(first_names)}{random.randint(100, 9999)}@{random.choice(domains)}"
-        password = ''.join(
-            random.choices(string.ascii_letters, k=8) + 
-            random.choices(string.digits, k=3) + 
-            random.choices('!@#$%^&*', k=1)
-        )
-        
+        email = self._generate_email()
+        password = self._generate_password()
+
         payload = {
             "email": email,
             "password": password,
@@ -121,13 +137,11 @@ class Webshare:
 
         response = self.session.post(f"{self.BASE_URL}/register/", json=payload)
         result = response.json()
-        
         self.used_captcha_key = True
         self.captcha_key = None
 
         if 'token' not in result:
             if "throttle" in result.get('detail', ''):
-                # Remove the current proxy if rate limited
                 if self.current_proxy in self.proxies:
                     self.proxies.remove(self.current_proxy)
                 raise RuntimeError("Rate Limited - Proxy removed. Please try with a new proxy.")
@@ -138,15 +152,12 @@ class Webshare:
     def download_proxies(self) -> List[dict]:
         response = self.session.get(f"{self.BASE_URL}/proxy/list/?mode=direct&page=1&page_size=10")
         proxies = response.json().get('results', [])
-
         if not proxies:
             raise RuntimeError("No proxies found.")
-
         with download_proxies_lock:
             with open("output.txt", 'a+') as f:
                 for proxy in proxies:
                     f.write(f"{self.format_proxy(proxy)}\n")
-
         return proxies
 
     def format_proxy(self, proxy: dict) -> str:
@@ -157,11 +168,9 @@ class Webshare:
             "username:password@ip:port": lambda p: f"{p['username']}:{p['password']}@{p['proxy_address']}:{p['port']}",
             "user:pass@ip:port": lambda p: f"{p['username']}:{p['password']}@{p['proxy_address']}:{p['port']}"
         }
-
         formatter = formats.get(self.proxy_format)
         if not formatter:
             raise ValueError("Invalid proxy format")
-        
         return formatter(proxy)
 
     def generate_proxies(self):
@@ -169,17 +178,13 @@ class Webshare:
             auth_token = self.register()
             log.log("[*] Created Webshare Account", "cyan")
             self.session.headers['Authorization'] = f"Token {auth_token}"
-
             proxies = self.download_proxies()
             log.log(f"[*] {len(proxies)} Proxies Generated!", "green")
             self.select_new_proxy()
-
         except requests.RequestException as e:
             log.log(f"[!] Proxy Failed: {str(e)}", "red")
-            # Remove current proxy from the list
             if self.current_proxy in self.proxies:
                 self.proxies.remove(self.current_proxy)
             self.select_new_proxy()
-
         except Exception as e:
             log.log(f"[!] {str(e)}", "red")
